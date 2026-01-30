@@ -1,0 +1,26 @@
+# Hermes AI Gateway v2.0.0
+
+# Web Framework
+fastapi==0.115.0
+uvicorn==0.30.0
+
+# HTTP Client (with HTTP/2 support)
+httpx[http2]==0.27.0
+
+# Data Validation
+pydantic==2.8.0
+
+# Logging
+loguru==0.7.2
+
+# Multipart Form
+python-multipart==0.0.9
+
+# Template Engine
+jinja2==3.1.4
+
+# Rate Limiting
+slowapi==0.1.9
+
+# Async SQLite
+aiosqlite==0.20.0

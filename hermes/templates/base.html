@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="scroll-smooth">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Hermes v5.0 | 宇宙起点{% endblock %}</title>
+    <link rel="icon" href="/logo.png" type="image/png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 300: '#7dd3fc', 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 800: '#075985', 900: '#0c4a6e' },
+                        cosmic: { light: '#6366f1', dark: '#4338ca', accent: '#a855f7' }
+                    },
+                    backdropBlur: { 'xs': '2px', 'md': '12px', 'xl': '24px' }
+                }
+            }
+        }
+    </script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.65);
+            --glass-border: rgba(255, 255, 255, 0.4);
+            --cosmic-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
+        }
+
+        .dark {
+            --glass-bg: rgba(15, 23, 42, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.08);
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* 动态背景网格 2.0 */
+        .cosmic-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: -1;
+            background-color: #f8fafc;
+            background-image:
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.15) 0, transparent 50%),
+                radial-gradient(at 50% 100%, rgba(236, 72, 153, 0.1) 0, transparent 50%);
+        }
+
+        .dark .cosmic-bg {
+            background-color: #020617;
+            background-image:
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.2) 0, transparent 40%),
+                radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.15) 0, transparent 40%);
+        }
+
+        /* Glassmorphism 2.0 卡片 */
+        .glass-v2 {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .glass-v2-hover:hover {
+            box-shadow: 0 12px 48px -12px rgba(99, 102, 241, 0.25);
+            transform: translateY(-2px);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* 导航态 */
+        .nav-active {
+            position: relative;
+            background: rgba(99, 102, 241, 0.1);
+            color: #6366f1 !important;
+            font-weight: 700;
+        }
+
+        .nav-active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 20%;
+            bottom: 20%;
+            width: 4px;
+            background: #6366f1;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .dark .nav-active {
+            background: rgba(99, 102, 241, 0.2);
+            color: #818cf8 !important;
+        }
+
+        /* 进度条动画 */
+        .loading-bar {
+            height: 2px;
+            background: var(--cosmic-gradient);
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 9999;
+            transition: width 0.3s ease;
+        }
+
+        /* Toast 样式 */
+        #toast-container {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .toast-item {
+            animation: slideIn 0.3s cubic-bezier(0.17, 0.67, 0.83, 0.67) forwards;
+        }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+
+<body class="flex flex-col md:flex-row min-h-screen">
+    <div class="cosmic-bg"></div>
+    <div id="loading" class="loading-bar" style="width: 0%"></div>
+
+    <!-- Sidebar 2.0 -->
+    <aside class="w-full md:w-72 p-6 flex-shrink-0 z-50">
+        <div class="glass-v2 rounded-3xl h-full flex flex-col border-white/20">
+            <div class="p-8 pb-4">
+                <a href="/dashboard" class="flex items-center gap-4 group">
+                    <div class="relative">
+                        <img src="/logo.png" alt="Logo"
+                            class="w-12 h-12 rounded-2xl shadow-2xl group-hover:rotate-12 transition-transform duration-500">
+                        <div
+                            class="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white dark:border-slate-800 rounded-full">
+                        </div>
+                    </div>
+                    <div>
+                        <h1
+                            class="text-2xl font-extrabold tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-600">
+                            Hermes</h1>
+                        <p class="text-[10px] font-mono text-gray-400 uppercase tracking-widest">v5.0 宇宙版</p>
+                    </div>
+                </a>
+            </div>
+
+            <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+                <div class="text-[10px] uppercase font-bold text-gray-400 px-4 mb-2 tracking-widest">核心引擎</div>
+                <a href="/dashboard"
+                    class="flex items-center gap-4 px-5 py-3.5 rounded-2xl text-gray-500 hover:bg-gray-50/50 dark:hover:bg-slate-800/50 transition-all {% if active_page == 'dashboard' %}nav-active{% endif %}">
+                    <i class="fa-solid fa-cube text-lg"></i>
+                    <span class="text-sm font-semibold">控制中心</span>
+                </a>
+                <a href="/metrics"
+                    class="flex items-center gap-4 px-5 py-3.5 rounded-2xl text-gray-500 hover:bg-gray-50/50 dark:hover:bg-slate-800/50 transition-all {% if active_page == 'metrics' %}nav-active{% endif %}">
+                    <i class="fa-solid fa-chart-line text-lg"></i>
+                    <span class="text-sm font-semibold">实时洞察</span>
+                </a>
+
+                <div class="text-[10px] uppercase font-bold text-gray-400 px-4 mt-8 mb-2 tracking-widest">系统操作
+                </div>
+                <a href="/chat"
+                    class="flex items-center gap-4 px-5 py-3.5 rounded-2xl text-gray-500 hover:bg-gray-50/50 dark:hover:bg-slate-800/50 transition-all {% if active_page == 'chat' %}nav-active{% endif %}">
+                    <i class="fa-solid fa-feather text-lg"></i>
+                    <span class="text-sm font-semibold">演算台 (Playground)</span>
+                </a>
+                <a href="/logs"
+                    class="flex items-center gap-4 px-5 py-3.5 rounded-2xl text-gray-500 hover:bg-gray-50/50 dark:hover:bg-slate-800/50 transition-all {% if active_page == 'logs' %}nav-active{% endif %}">
+                    <i class="fa-solid fa-fingerprint text-lg"></i>
+                    <span class="text-sm font-semibold">全链路日志</span>
+                </a>
+                <a href="/settings"
+                    class="flex items-center gap-4 px-5 py-3.5 rounded-2xl text-gray-500 hover:bg-gray-50/50 dark:hover:bg-slate-800/50 transition-all {% if active_page == 'settings' %}nav-active{% endif %}">
+                    <i class="fa-solid fa-sliders text-lg"></i>
+                    <span class="text-sm font-semibold">进阶配置</span>
+                </a>
+            </nav>
+
+            <div class="p-6">
+                <div
+                    class="bg-indigo-50 dark:bg-indigo-900/30 p-4 rounded-2xl border border-indigo-100/50 dark:border-indigo-500/10">
+                    <p
+                        class="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-tighter mb-1">
+                        系统健康状态</p>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-gray-600 dark:text-gray-300">稳定运行中</span>
+                        <div
+                            class="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)] animate-pulse">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Section -->
+    <main class="flex-1 flex flex-col max-h-screen overflow-hidden">
+        <header class="h-24 flex items-center justify-between px-8 md:px-12">
+            <div>
+                <h2 class="text-3xl font-extrabold tracking-tight text-slate-800 dark:text-white">{% block header_title
+                    %}概览{% endblock %}</h2>
+                <nav class="flex items-center gap-2 text-xs font-medium text-slate-400 mt-1">
+                    <span>Hermes</span>
+                    <i class="fa-solid fa-angle-right scale-75"></i>
+                    <span class="text-indigo-500 dark:text-indigo-400">当前节点</span>
+                </nav>
+            </div>
+
+            <div class="flex items-center gap-6">
+                <!-- SSE Status Indicator -->
+                <div id="sse-status"
+                    class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-500 transition-all">
+                    <div class="w-2 h-2 rounded-full bg-slate-300 status-dot"></div>
+                    <span class="status-text uppercase tracking-tighter">实时离线</span>
+                </div>
+
+                <button onclick="toggleDarkMode()"
+                    class="w-10 h-10 rounded-2xl glass-v2 flex items-center justify-center text-slate-600 dark:text-yellow-400 hover:scale-110 active:scale-95 transition-all">
+                    <i class="fa-solid fa-moon dark:hidden"></i>
+                    <i class="fa-solid fa-sun hidden dark:inline"></i>
+                </button>
+            </div>
+        </header>
+
+        <section class="flex-1 overflow-y-auto px-8 md:px-12">
+            <div class="max-w-7xl mx-auto py-8">
+                {% block content %}{% endblock %}
+            </div>
+        </section>
+    </main>
+
+    <div id="toast-container"></div>
+
+    <script>
+        // 暗黑模式切换
+        function toggleDarkMode() {
+            const html = document.documentElement;
+            html.classList.toggle('dark');
+            localStorage.theme = html.classList.contains('dark') ? 'dark' : 'light';
+        }
+
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        }
+
+        // SSE 客户端管理 (v5.0 Global)
+        class CosmicStream {
+            constructor() {
+                this.eventSource = null;
+                this.connect();
+            }
+
+            connect() {
+                const statusDot = document.querySelector('#sse-status .status-dot');
+                const statusText = document.querySelector('#sse-status .status-text');
+
+                this.eventSource = new EventSource('/admin/events');
+
+                this.eventSource.onopen = () => {
+                    statusDot.className = 'w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]';
+                    statusText.innerText = '实时在线';
+                    document.getElementById('sse-status').classList.replace('bg-slate-100', 'bg-green-50');
+                };
+
+                this.eventSource.onmessage = (e) => {
+                    if (e.data === ': ping') return;
+                    const payload = JSON.parse(e.data);
+                    window.dispatchEvent(new CustomEvent('cosmic-event', { detail: payload }));
+
+                    if (payload.type === 'error') {
+                        this.showToast(payload.data.msg, 'error');
+                    }
+                };
+
+                this.eventSource.onerror = (e) => {
+                    statusDot.className = 'w-2 h-2 rounded-full bg-red-500';
+                    statusText.innerText = '连接断开';
+                    this.eventSource.close();
+                    setTimeout(() => this.connect(), 5000); // 自动重连
+                };
+            }
+
+            showToast(msg, type = 'info') {
+                const container = document.getElementById('toast-container');
+                const toast = document.createElement('div');
+                toast.className = `toast-item glass-v2 p-4 rounded-2xl flex items-center gap-4 min-w-[280px] border-l-4 ${type === 'error' ? 'border-red-500 bg-red-50/90' : 'border-indigo-500 bg-white/90'}`;
+                const typeLabel = type === 'error' ? '错误' : (type === 'success' ? '成功' : '通知');
+                toast.innerHTML = `
+                    <div class="w-8 h-8 rounded-full ${type === 'error' ? 'bg-red-100 text-red-600' : 'bg-indigo-100 text-indigo-600'} flex items-center justify-center">
+                        <i class="fa-solid ${type === 'error' ? 'fa-triangle-exclamation' : 'fa-bell'}"></i>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">${typeLabel}</p>
+                        <p class="text-sm font-semibold">${msg}</p>
+                    </div>
+                `;
+                container.appendChild(toast);
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    setTimeout(() => toast.remove(), 400);
+                }, 4000);
+            }
+        }
+
+        // 全局启动
+        window.addEventListener('DOMContentLoaded', () => {
+            window.stream = new CosmicStream();
+            // 简单进度模拟
+            document.getElementById('loading').style.width = '100%';
+            setTimeout(() => document.getElementById('loading').style.opacity = '0', 500);
+        });
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+
+</html>

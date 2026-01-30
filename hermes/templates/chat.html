@@ -1,0 +1,393 @@
+{% extends "base.html" %}
+
+{% block title %}演算台 - Hermes v5.0{% endblock %}
+{% block header_title %}智能演算台{% endblock %}
+{% set active_page = "chat" %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+<style>
+    .chat-scroll::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .chat-scroll::-webkit-scrollbar-thumb {
+        background: rgba(99, 102, 241, 0.2);
+        border-radius: 10px;
+    }
+
+    .message-bubble {
+        animation: bubblePop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        transform-origin: bottom left;
+    }
+
+    .user-bubble {
+        transform-origin: bottom right;
+    }
+
+    @keyframes bubblePop {
+        from {
+            opacity: 0;
+            transform: scale(0.95) translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+    }
+
+    .msg-content pre {
+        background: #111827;
+        padding: 1.25rem;
+        border-radius: 1rem;
+        margin: 1rem 0;
+        overflow-x: auto;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .msg-content code {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.85rem;
+    }
+
+    .typing-indicator span {
+        width: 4px;
+        height: 4px;
+        background: #6366f1;
+        border-radius: 50%;
+        display: inline-block;
+        animation: typing 1.4s infinite ease-in-out;
+    }
+
+    .typing-indicator span:nth-child(2) {
+        animation-delay: 0.2s;
+    }
+
+    .typing-indicator span:nth-child(3) {
+        animation-delay: 0.4s;
+    }
+
+    @keyframes typing {
+
+        0%,
+        100% {
+            transform: translateY(0);
+            opacity: 0.5;
+        }
+
+        50% {
+            transform: translateY(-4px);
+            opacity: 1;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex flex-col lg:flex-row h-[calc(100vh-12rem)] gap-8">
+
+    <!-- 左侧配置面板 -->
+    <div class="w-full lg:w-80 flex flex-col gap-6">
+        <div class="glass-v2 rounded-[32px] p-6 flex flex-col h-full border-white/40">
+            <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">执行配置</h3>
+
+            <div class="space-y-8 flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                <!-- Hermes Key -->
+                <div class="group">
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter mb-2 block">矩阵访问密钥
+                        (Access Key)</label>
+                    <div class="relative">
+                        <input type="password" id="apiKey" value="hermes-secret-key-123"
+                            class="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border-transparent focus:border-indigo-500 transition-all outline-none text-xs font-mono">
+                        <i class="fa-solid fa-key absolute left-3.5 top-3.5 text-slate-400 text-[10px]"></i>
+                    </div>
+                </div>
+
+                <!-- Model Selection -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <label
+                            class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter block">智能节点选择</label>
+                        <button onclick="loadModels()"
+                            class="text-[9px] font-black text-indigo-500 uppercase hover:underline">扫描矩阵</button>
+                    </div>
+                    <div class="relative">
+                        <select id="modelSelect"
+                            class="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border-transparent focus:border-indigo-500 transition-all outline-none text-xs font-bold appearance-none cursor-pointer">
+                            <option value="" disabled selected>等待扫描...</option>
+                        </select>
+                        <i class="fa-solid fa-brain absolute left-3.5 top-3.5 text-slate-400 text-[10px]"></i>
+                    </div>
+                </div>
+
+                <!-- Hyperparameters -->
+                <div class="pt-6 border-t border-slate-100 dark:border-slate-800 space-y-6">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">流式模式
+                            (Stream)</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="streamToggle" checked class="sr-only peer">
+                            <div
+                                class="w-8 h-4 bg-slate-200 dark:bg-slate-700 rounded-full peer peer-checked:bg-indigo-600 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-4">
+                            </div>
+                        </label>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between mb-2">
+                            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">温度
+                                (Temperature)</span>
+                            <span id="tempValue" class="text-[10px] font-black text-indigo-500">0.7</span>
+                        </div>
+                        <input type="range" id="tempRange" min="0" max="2" step="0.1" value="0.7"
+                            class="w-full h-1 bg-slate-100 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between mb-2">
+                            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">最大 Token
+                                (Limit)</span>
+                            <span id="maxTokensValue" class="text-[10px] font-black text-indigo-500">2048</span>
+                        </div>
+                        <input type="range" id="maxTokensRange" min="512" max="8192" step="512" value="2048"
+                            class="w-full h-1 bg-slate-100 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="clearChat()"
+                class="mt-6 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-red-500 transition-colors">
+                <i class="fa-solid fa-trash-can mr-2"></i> 清除对话迹象
+            </button>
+        </div>
+    </div>
+
+    <!-- 主对话空间 -->
+    <div class="flex-1 glass-v2 rounded-[40px] flex flex-col border-white/40 overflow-hidden relative shadow-2xl">
+        <!-- 消息区域 -->
+        <div id="chatContainer" class="flex-1 overflow-y-auto p-10 space-y-10 chat-scroll pb-32">
+            <!-- 初始欢迎 -->
+            <div class="flex gap-6 message-bubble">
+                <div
+                    class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center flex-shrink-0 shadow-xl">
+                    <i class="fa-solid fa-shuttle-space"></i>
+                </div>
+                <div class="flex-1 max-w-2xl">
+                    <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Hermes 核心</div>
+                    <div
+                        class="bg-white/60 dark:bg-slate-800/60 p-5 rounded-3xl rounded-tl-none border border-white/20 text-sm text-slate-700 dark:text-slate-200 leading-relaxed shadow-sm">
+                        正在同步神经矩阵... 欢迎来到 Hermes v5.0 演算空间。今天我们要对智能网格进行怎样的压力测试？
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 悬浮输入容器 -->
+        <div class="absolute bottom-10 left-10 right-10 flex flex-col gap-4">
+            <div id="activeInfo"
+                class="hidden px-4 py-2 rounded-full glass-v2 border-indigo-500/20 bg-indigo-50/50 dark:bg-indigo-900/20 text-[9px] font-bold text-indigo-500 w-fit self-center flex items-center gap-2 animate-bounce-short">
+                <div class="w-1.5 h-1.5 rounded-full bg-indigo-500 status-pulse"></div>
+                <span id="activeModelLabel">正在处理信号...</span>
+            </div>
+
+            <div class="relative group">
+                <div
+                    class="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-[30px] blur opacity-10 group-focus-within:opacity-30 transition-opacity duration-500">
+                </div>
+                <div class="relative flex items-center glass-v2 rounded-[28px] border-white/40 p-2 pr-4 shadow-xl">
+                    <textarea id="userInput" rows="1" placeholder="编写信号指令..."
+                        class="flex-1 px-5 py-3 bg-transparent outline-none text-sm font-medium text-slate-700 dark:text-slate-200 resize-none max-h-48"></textarea>
+                    <button id="sendBtn"
+                        class="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center hover:bg-indigo-700 hover:scale-105 active:scale-95 transition-all shadow-lg disabled:opacity-30">
+                        <i class="fa-solid fa-arrow-up"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    marked.setOptions({
+        highlight: function (code, lang) {
+            const language = hljs.getLanguage(lang) ? lang : 'plaintext';
+            return hljs.highlight(code, { language }).value;
+        },
+        langPrefix: 'hljs language-'
+    });
+
+    const apiKeyInput = document.getElementById('apiKey');
+    const modelSelect = document.getElementById('modelSelect');
+    const userInput = document.getElementById('userInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const chatContainer = document.getElementById('chatContainer');
+    const activeInfo = document.getElementById('activeInfo');
+
+    document.getElementById('tempRange').addEventListener('input', (e) => document.getElementById('tempValue').innerText = e.target.value);
+    document.getElementById('maxTokensRange').addEventListener('input', (e) => document.getElementById('maxTokensValue').innerText = e.target.value);
+
+    userInput.addEventListener('input', function () {
+        this.style.height = 'auto';
+        this.style.height = this.scrollHeight + 'px';
+    });
+
+    userInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+
+    async function loadModels() {
+        const key = apiKeyInput.value.trim();
+        modelSelect.disabled = true;
+        modelSelect.innerHTML = '<option>正在扫描...</option>';
+        try {
+            const res = await fetch('/v1/models', {
+                headers: { 'Authorization': `Bearer ${key}` }
+            });
+            const data = await res.json();
+            modelSelect.innerHTML = '';
+            (data.data || []).forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m.id; opt.text = m.id;
+                modelSelect.appendChild(opt);
+            });
+            modelSelect.disabled = false;
+        } catch (e) {
+            modelSelect.innerHTML = '<option disabled selected>扫描失败</option>';
+            window.stream.showToast('无法获取模型列表', 'error');
+        }
+    }
+
+    function appendMessage(role, content, id = null) {
+        const isUser = role === 'user';
+        const div = document.createElement('div');
+        div.id = id || `msg-${Date.now()}`;
+        div.className = `flex gap-6 message-bubble ${isUser ? 'flex-row-reverse user-bubble' : ''}`;
+
+        const avatar = isUser ?
+            `<div class="w-12 h-12 rounded-2xl bg-white border border-slate-100 text-slate-400 flex items-center justify-center flex-shrink-0 shadow-lg"><i class="fa-solid fa-user"></i></div>` :
+            `<div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center flex-shrink-0 shadow-xl"><i class="fa-solid fa-shuttle-space"></i></div>`;
+
+        const bubbleStyles = isUser ?
+            'bg-indigo-600 text-white rounded-3xl rounded-tr-none px-6 py-4' :
+            'bg-white/80 dark:bg-slate-800/70 p-6 rounded-3xl rounded-tl-none border border-white/20 text-slate-700 dark:text-slate-200';
+
+        div.innerHTML = `
+            ${avatar}
+            <div class="flex-1 max-w-4xl">
+                <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ${isUser ? 'text-right' : ''}">${role === 'user' ? '操作员' : 'Hermes 神经链路'}</div>
+                <div class="${bubbleStyles} text-sm leading-relaxed shadow-sm msg-content">
+                    ${isUser ? escapeHtml(content) : marked.parse(content)}
+                </div>
+            </div>
+        `;
+        chatContainer.appendChild(div);
+        chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+        return div;
+    }
+
+    function appendLoading() {
+        const id = `loading-${Date.now()}`;
+        const div = document.createElement('div');
+        div.id = id;
+        div.className = 'flex gap-6 message-bubble';
+        div.innerHTML = `
+            <div class="w-12 h-12 rounded-2xl bg-indigo-500 text-white flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-shuttle-space"></i></div>
+            <div class="bg-indigo-50/30 dark:bg-indigo-900/20 px-6 py-4 rounded-3xl rounded-tl-none flex items-center gap-2">
+                <div class="typing-indicator flex gap-1"><span></span><span></span><span></span></div>
+            </div>
+        `;
+        chatContainer.appendChild(div);
+        chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+        return id;
+    }
+
+    async function sendMessage() {
+        const text = userInput.value.trim();
+        if (!text) return;
+        const model = modelSelect.value;
+        if (!model) { window.stream.showToast('需要指定信号路由 (选择模型)', 'error'); return; }
+
+        userInput.value = '';
+        userInput.style.height = 'auto';
+        userInput.disabled = true;
+        sendBtn.disabled = true;
+        activeInfo.classList.remove('hidden');
+        document.getElementById('activeModelLabel').innerText = `正在通过 ${model} 路由信号...`;
+
+        appendMessage('user', text);
+        const loadingId = appendLoading();
+        let fullResponse = '';
+
+        try {
+            const res = await fetch('/v1/chat/completions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKeyInput.value.trim()}` },
+                body: JSON.stringify({
+                    model: model, messages: [{ role: 'user', content: text }],
+                    stream: document.getElementById('streamToggle').checked,
+                    temperature: parseFloat(document.getElementById('tempRange').value),
+                    max_tokens: parseInt(document.getElementById('maxTokensRange').value)
+                })
+            });
+
+            if (!res.ok) throw new Error((await res.json()).error?.message || '传输故障');
+            document.getElementById(loadingId).remove();
+
+            const msgEl = appendMessage('assistant', '');
+            const contentEl = msgEl.querySelector('.msg-content');
+
+            if (document.getElementById('streamToggle').checked) {
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n').filter(l => l.trim().startsWith('data: '));
+                    for (const line of lines) {
+                        const content = line.replace('data: ', '').trim();
+                        if (content === '[DONE]') break;
+                        try {
+                            const parsed = JSON.parse(content);
+                            const delta = parsed.choices[0].delta.content || '';
+                            fullResponse += delta;
+                            contentEl.innerHTML = marked.parse(fullResponse);
+                        } catch (e) { }
+                    }
+                }
+            } else {
+                const data = await res.json();
+                fullResponse = data.choices[0].message.content;
+                contentEl.innerHTML = marked.parse(fullResponse);
+            }
+        } catch (e) {
+            const el = document.getElementById(loadingId);
+            if (el) el.innerHTML = `<div class="bg-red-50 text-red-500 p-4 rounded-xl text-xs font-bold border border-red-100">错误: ${e.message}</div>`;
+        } finally {
+            userInput.disabled = false; sendBtn.disabled = false;
+            activeInfo.classList.add('hidden'); userInput.focus();
+        }
+    }
+
+    function clearChat() {
+        if (confirm('清除当前空间的所有会话迹象？')) {
+            chatContainer.innerHTML = '';
+            window.stream.showToast('空间已清理', 'info');
+        }
+    }
+
+    function escapeHtml(text) {
+        return text.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": "&#039;" }[m]));
+    }
+
+    window.addEventListener('load', loadModels);
+</script>
+{% endblock %}

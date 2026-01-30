@@ -1,0 +1,352 @@
+{% extends "base.html" %}
+
+{% block title %}系统设置 - Hermes{% endblock %}
+{% block header_title %}System Settings (系统设置){% endblock %}
+{% set active_page = "settings" %}
+
+{% block content %}
+<div class="space-y-8">
+
+    <!-- Key Management -->
+    <div class="glass-card p-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+            <span class="w-8 h-8 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center text-sm"><i
+                    class="fa-solid fa-key"></i></span>
+            <span>API 密钥管理</span>
+        </h2>
+
+        <div class="bg-purple-50/50 rounded-xl p-5 border border-purple-100 mb-6">
+            <div class="flex flex-col md:flex-row gap-3">
+                <input type="text" id="newKeyDescription" placeholder="描述 (例如 '测试密钥')"
+                    class="flex-grow px-4 py-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/30 text-sm">
+                <input type="text" id="newKeyValue" placeholder="自定义密钥 (可选)"
+                    class="flex-grow px-4 py-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/30 text-sm font-mono">
+                <button type="button" id="generateKeyBtn" onclick="generateNewKey()"
+                    class="px-6 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-medium shadow-lg shadow-purple-500/20 flex items-center gap-2 whitespace-nowrap">
+                    <i class="fa-solid fa-plus"></i> 生成
+                </button>
+            </div>
+            <div id="generatedKeyDisplay"
+                class="mt-4 p-3 bg-white border border-purple-200 rounded-lg flex items-center justify-between hidden animate-fade-in shadow-sm">
+                <div class="flex items-center gap-3 overflow-hidden">
+                    <span class="text-xs font-bold text-purple-600 uppercase tracking-wide">新密钥:</span>
+                    <span class="font-mono text-sm text-gray-800 truncate select-all" id="newKeyText"></span>
+                </div>
+                <button onclick="copyKey()" class="text-gray-400 hover:text-purple-600 transition"><i
+                        class="fa-regular fa-copy"></i></button>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">活跃密钥</h3>
+            <div class="flex gap-2">
+                <input type="text" id="keySearchTerm" placeholder="搜索..."
+                    class="px-3 py-1.5 text-xs border border-gray-200 rounded-lg">
+                <button onclick="searchKeys()" class="text-gray-400 hover:text-gray-600"><i
+                        class="fa-solid fa-magnifying-glass"></i></button>
+                <button onclick="clearKeySearch()" class="text-gray-400 hover:text-gray-600"><i
+                        class="fa-solid fa-rotate-right"></i></button>
+            </div>
+        </div>
+
+        <div id="keyList" class="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+            <p class="text-center text-gray-400 py-4">正在加载密钥...</p>
+        </div>
+    </div>
+
+    <!-- Dispatcher Configuration -->
+    <div class="glass-card p-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+            <span class="w-8 h-8 rounded-lg bg-red-100 text-red-600 flex items-center justify-center text-sm"><i
+                    class="fa-solid fa-traffic-light"></i></span>
+            <span>调度逻辑配置</span>
+        </h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div class="bg-gray-50/50 p-4 rounded-xl border border-gray-100">
+                <label class="block text-xs font-semibold text-gray-500 uppercase mb-2">初始惩罚时间 (分钟)</label>
+                <input type="number" id="initialPenaltyMs"
+                    class="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-mono focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition">
+                <p class="text-xs text-gray-400 mt-1">默认: 30 分钟</p>
+            </div>
+            <div class="bg-gray-50/50 p-4 rounded-xl border border-gray-100">
+                <label class="block text-xs font-semibold text-gray-500 uppercase mb-2">最大惩罚时间 (分钟)</label>
+                <input type="number" id="maxPenaltyMs"
+                    class="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-mono focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition">
+                <p class="text-xs text-gray-400 mt-1">默认: 240 分钟 (4小时)</p>
+            </div>
+            <div class="bg-gray-50/50 p-4 rounded-xl border border-gray-100">
+                <label class="block text-xs font-semibold text-gray-500 uppercase mb-2">重新同步阈值 (次)</label>
+                <input type="number" id="resyncThreshold"
+                    class="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-mono focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition">
+                <p class="text-xs text-gray-400 mt-1">触发同步前的失败次数</p>
+            </div>
+            <div class="bg-gray-50/50 p-4 rounded-xl border border-gray-100">
+                <label class="block text-xs font-semibold text-gray-500 uppercase mb-2">重新同步冷却 (分钟)</label>
+                <input type="number" id="resyncCooldownMs"
+                    class="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-mono focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition">
+                <p class="text-xs text-gray-400 mt-1">两次同步之间的最小间隔</p>
+            </div>
+        </div>
+
+        <div class="flex justify-end">
+            <button onclick="setDispatcherConfig()"
+                class="px-5 py-2 bg-gray-800 text-white rounded-lg hover:bg-black transition font-medium text-sm">保存配置</button>
+        </div>
+    </div>
+
+    <!-- Other Settings Row -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Periodic Sync -->
+        <div class="glass-card p-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-clock-rotate-left text-orange-500"></i> 定期同步
+            </h2>
+            <div class="flex items-center gap-3">
+                <input type="number" id="syncIntervalInput"
+                    class="w-24 px-3 py-2 border border-gray-200 rounded-lg text-sm text-center">
+                <span class="text-sm text-gray-600">小时</span>
+                <button onclick="setPeriodicSyncInterval()"
+                    class="ml-auto px-4 py-2 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 text-sm font-medium transition">保存</button>
+            </div>
+            <p class="text-xs text-gray-400 mt-2">当前: <span id="currentIntervalDisplay"
+                    class="font-mono text-gray-600">-</span> 小时</p>
+        </div>
+
+        <!-- Max Retries -->
+        <div class="glass-card p-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-rotate text-blue-500"></i> 对话重试
+            </h2>
+            <div class="flex items-center gap-3">
+                <input type="number" id="chatRetryInput"
+                    class="w-24 px-3 py-2 border border-gray-200 rounded-lg text-sm text-center">
+                <span class="text-sm text-gray-600">最大尝试次数</span>
+                <button onclick="setChatMaxRetries()"
+                    class="ml-auto px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 text-sm font-medium transition">保存</button>
+            </div>
+            <p class="text-xs text-gray-400 mt-2">当前: <span id="currentChatRetryDisplay"
+                    class="font-mono text-gray-600">-</span></p>
+        </div>
+    </div>
+
+    <!-- Active Cooldowns -->
+    <div class="glass-card p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <i class="fa-solid fa-snowflake text-cyan-500"></i> 活跃冷却
+            </h2>
+            <button onclick="fetchCooldowns()"
+                class="text-xs bg-gray-50 hover:bg-gray-100 px-2 py-1 rounded border border-gray-200 transition"><i
+                    class="fa-solid fa-rotate"></i> 刷新</button>
+        </div>
+
+        <div id="cooldownList" class="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar">
+            <p class="text-center text-gray-400 text-xs py-4">正在检查冷却状态...</p>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const API_BASE = '/admin';
+
+    function formatDate(ts) {
+        return new Date(ts).toLocaleString('zh-CN', {
+            year: 'numeric', month: 'numeric', day: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+    }
+
+    // Refresh All
+    window.refreshSettings = () => {
+        fetchKeys();
+        fetchPeriodicSyncInterval();
+        fetchChatMaxRetries();
+        fetchDispatcherConfig();
+        fetchCooldowns();
+    };
+
+    // --- Dispatcher Config ---
+    async function fetchDispatcherConfig() {
+        try {
+            const res = await fetch('/admin/settings/dispatcher');
+            const data = await res.json();
+            document.getElementById('initialPenaltyMs').value = Math.floor(data.initialPenaltyMs / 60000);
+            document.getElementById('maxPenaltyMs').value = Math.floor(data.maxPenaltyMs / 60000);
+            document.getElementById('resyncThreshold').value = data.resyncThreshold;
+            document.getElementById('resyncCooldownMs').value = Math.floor(data.resyncCooldownMs / 60000);
+        } catch (err) { console.error(err); }
+    }
+
+    window.setDispatcherConfig = async () => {
+        const payload = {
+            initialPenaltyMs: parseInt(document.getElementById('initialPenaltyMs').value) * 60000,
+            maxPenaltyMs: parseInt(document.getElementById('maxPenaltyMs').value) * 60000,
+            resyncThreshold: parseInt(document.getElementById('resyncThreshold').value),
+            resyncCooldownMs: parseInt(document.getElementById('resyncCooldownMs').value) * 60000,
+        };
+        try {
+            const res = await fetch('/admin/settings/dispatcher', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+            });
+            const result = await res.json();
+            if (result.success) {
+                alert("调度器配置已保存。");
+                fetchDispatcherConfig();
+            } else alert("保存失败。");
+        } catch (err) { alert("错误: " + err.message); }
+    }
+
+    // --- Cooldowns ---
+    async function fetchCooldowns() {
+        const listEl = document.getElementById('cooldownList');
+        try {
+            const res = await fetch('/admin/dispatcher/cooldowns');
+            const { data } = await res.json();
+            listEl.innerHTML = '';
+            if (data.length === 0) {
+                listEl.innerHTML = `<p class="text-gray-400 text-center text-xs py-4">无活跃冷却。系统健康。</p>`;
+                return;
+            }
+            data.forEach(item => {
+                const el = document.createElement('div');
+                el.className = 'bg-gray-50 border border-gray-100 rounded-lg p-3 flex justify-between items-center group hover:border-red-200 transition';
+                const remainingSec = Math.ceil(item.remainingMs / 1000);
+                el.innerHTML = `
+                    <div class="flex flex-col">
+                        <span class="text-sm font-bold text-gray-700">${item.modelName}</span>
+                         <span class="text-xs text-gray-500">${item.providerName}</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                         <span class="text-xs font-mono text-red-500 bg-red-50 px-2 py-1 rounded border border-red-100">剩余 ${remainingSec}s</span>
+                         <button onclick="clearCooldown('${item.providerId}', '${item.modelName}')" class="w-6 h-6 rounded bg-white border border-gray-200 text-gray-400 hover:text-green-600 hover:border-green-300 flex items-center justify-center transition">
+                            <i class="fa-solid fa-check text-xs"></i>
+                        </button>
+                    </div>
+                `;
+                listEl.appendChild(el);
+            });
+        } catch (err) { listEl.innerHTML = `<p class="text-red-400 text-center text-xs">加载错误</p>`; }
+    }
+
+    window.clearCooldown = async (providerId, modelName) => {
+        try {
+            await fetch('/admin/dispatcher/cooldowns/clear', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId, modelName })
+            });
+            fetchCooldowns();
+        } catch (err) { console.error(err); }
+    }
+
+    // --- Keys ---
+    async function fetchKeys(searchTerm = '') {
+        const keyList = document.getElementById('keyList');
+        try {
+            const res = await fetch(`${API_BASE}/keys${searchTerm ? `?description=${encodeURIComponent(searchTerm)}&id=${encodeURIComponent(searchTerm)}` : ''}`);
+            const { data } = await res.json();
+            keyList.innerHTML = '';
+            if (data.length === 0) {
+                keyList.innerHTML = `<p class="text-gray-400 text-center text-xs py-4">暂无密钥。</p>`;
+                return;
+            }
+            data.forEach(key => {
+                const el = document.createElement('div');
+                el.className = 'flex justify-between items-center p-3 bg-white border border-gray-100 rounded-lg hover:shadow-sm transition group';
+                el.innerHTML = `
+                    <div>
+                        <p class="text-sm font-semibold text-gray-800">${key.description}</p>
+                        <div class="flex items-center gap-2 mt-1">
+                             <span class="text-[10px] font-mono text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">ID: ${key.id.substring(0, 8)}...</span>
+                             <span class="text-[10px] text-gray-400"><i class="fa-regular fa-clock mr-1"></i>${formatDate(key.createdAt)}</span>
+                        </div>
+                    </div>
+                    <button onclick="deleteKey('${key.id}')" class="opacity-0 group-hover:opacity-100 transition-opacity w-8 h-8 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500 flex items-center justify-center">
+                        <i class="fa-regular fa-trash-can"></i>
+                    </button>
+                `;
+                keyList.appendChild(el);
+            });
+        } catch (err) { console.error(err); }
+    }
+
+    window.generateNewKey = async () => {
+        const btn = document.getElementById('generateKeyBtn');
+        btn.disabled = true;
+        const description = document.getElementById('newKeyDescription').value.trim();
+        const keyValue = document.getElementById('newKeyValue').value.trim();
+        try {
+            const res = await fetch(`${API_BASE}/keys/generate`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ description: description || '由管理员生成', key: keyValue || undefined })
+            });
+            const result = await res.json();
+            if (result.success) {
+                document.getElementById('newKeyText').innerText = result.key;
+                document.getElementById('generatedKeyDisplay').classList.remove('hidden');
+                document.getElementById('newKeyDescription').value = '';
+                document.getElementById('newKeyValue').value = '';
+                fetchKeys();
+            } else alert(result.error);
+        } catch (err) { alert(err.message); }
+        finally { btn.disabled = false; }
+    };
+
+    window.copyKey = () => {
+        const text = document.getElementById('newKeyText').innerText;
+        navigator.clipboard.writeText(text);
+        alert("已复制到剪贴板");
+    }
+
+    window.deleteKey = async (id) => {
+        if (!confirm('确定要删除此密钥吗？')) return;
+        await fetch(`${API_BASE}/keys/${id}`, { method: 'DELETE' });
+        fetchKeys();
+    };
+
+    window.searchKeys = () => fetchKeys(document.getElementById('keySearchTerm').value.trim());
+    window.clearKeySearch = () => { document.getElementById('keySearchTerm').value = ''; fetchKeys(); };
+
+    // --- Other Settings (Sync, Retry) ---
+    async function fetchPeriodicSyncInterval() {
+        try {
+            const res = await fetch('/admin/settings/periodic-sync-interval-hours');
+            const { intervalHours } = await res.json();
+            document.getElementById('syncIntervalInput').value = intervalHours;
+            document.getElementById('currentIntervalDisplay').innerText = intervalHours;
+        } catch (e) { }
+    }
+    window.setPeriodicSyncInterval = async () => {
+        // ... (reuse logic)
+        try {
+            const val = parseInt(document.getElementById('syncIntervalInput').value);
+            const res = await fetch('/admin/settings/periodic-sync-interval-hours', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ intervalHours: val })
+            });
+            fetchPeriodicSyncInterval();
+        } catch (e) { }
+    }
+
+    async function fetchChatMaxRetries() {
+        try {
+            const res = await fetch('/admin/settings/chat-max-retries');
+            const { maxRetries } = await res.json();
+            document.getElementById('chatRetryInput').value = maxRetries;
+            document.getElementById('currentChatRetryDisplay').innerText = maxRetries;
+        } catch (e) { }
+    }
+    window.setChatMaxRetries = async () => {
+        try {
+            const val = parseInt(document.getElementById('chatRetryInput').value);
+            const res = await fetch('/admin/settings/chat-max-retries', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ maxRetries: val })
+            });
+            fetchChatMaxRetries();
+        } catch (e) { }
+    }
+
+    refreshSettings();
+</script>
+{% endblock %}

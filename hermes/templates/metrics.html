@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+
+{% block title %}监控指标 - Hermes{% endblock %}
+{% block header_title %}System Metrics (监控指标){% endblock %}
+{% set active_page = "metrics" %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+
+    <!-- Cards Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5" id="cards">
+        <!-- Rendered by JS -->
+        <div class="col-span-full text-center py-10 text-gray-400">正在加载指标...</div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Model Usage -->
+        <div class="glass-card p-6">
+            <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center justify-between">
+                <span><i class="fa-solid fa-chart-bar text-blue-500 mr-2"></i> 模型调用统计</span>
+                <span class="text-xs text-gray-400 font-normal" id="modelTotal"></span>
+            </h3>
+            <div class="relative h-64 w-full">
+                <canvas id="modelChart"></canvas>
+            </div>
+            <div class="mt-6 overflow-x-auto">
+                <table class="w-full text-sm text-left">
+                    <thead class="text-xs text-gray-500 uppercase bg-gray-50 rounded-lg">
+                        <tr>
+                            <th class="px-4 py-2">模型</th>
+                            <th class="px-4 py-2 text-right">调用次数</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modelTable" class="divide-y divide-gray-50"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Provider Usage -->
+        <div class="glass-card p-6">
+            <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center justify-between">
+                <span><i class="fa-solid fa-server text-green-500 mr-2"></i> 供应商调用统计</span>
+                <span class="text-xs text-gray-400 font-normal" id="providerTotal"></span>
+            </h3>
+            <div class="relative h-64 w-full">
+                <canvas id="providerChart"></canvas>
+            </div>
+            <div class="mt-6 overflow-x-auto">
+                <table class="w-full text-sm text-left">
+                    <thead class="text-xs text-gray-500 uppercase bg-gray-50 rounded-lg">
+                        <tr>
+                            <th class="px-4 py-2">供应商</th>
+                            <th class="px-4 py-2 text-right">成功</th>
+                            <th class="px-4 py-2 text-right">错误</th>
+                        </tr>
+                    </thead>
+                    <tbody id="providerTable" class="divide-y divide-gray-50"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const API_BASE = '/admin';
+    let modelChart, providerChart;
+
+    function renderCards(metrics) {
+        const { counters, usage } = metrics;
+        const cards = [
+            { title: '上游错误', value: counters.upstreamErrors, icon: 'fa-triangle-exclamation', color: 'text-red-500', bg: 'bg-red-50 border-red-100' },
+            { title: '冷却触发', value: counters.cooldowns, icon: 'fa-snowflake', color: 'text-cyan-500', bg: 'bg-cyan-50 border-cyan-100' },
+            { title: '重试耗尽', value: counters.retryExhausted, icon: 'fa-rotate', color: 'text-orange-500', bg: 'bg-orange-50 border-orange-100' },
+            { title: '热门模型', value: usage.topModel ? `${usage.topModel.model}` : '—', sub: usage.topModel ? `${usage.topModel.count} 次调用` : '', icon: 'fa-fire', color: 'text-purple-500', bg: 'bg-purple-50 border-purple-100' },
+            { title: '活跃供应商', value: usage.topProvider ? `${usage.topProvider.name}` : '—', sub: usage.topProvider ? `${usage.topProvider.count} 次调用` : '', icon: 'fa-server', color: 'text-emerald-500', bg: 'bg-emerald-50 border-emerald-100' },
+        ];
+
+        const container = document.getElementById('cards');
+        container.innerHTML = '';
+        cards.forEach(card => {
+            const el = document.createElement('div');
+            el.className = `glass-card p-5 relative overflow-hidden group hover:scale-[1.02] transition-transform duration-300`;
+
+            el.innerHTML = `
+          <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+               <i class="fa-solid ${card.icon} text-6xl ${card.color}"></i>
+          </div>
+          <div class="relative z-10">
+              <div class="flex items-center gap-3 mb-2">
+                 <div class="w-8 h-8 rounded-lg ${card.bg} flex items-center justify-center ${card.color}">
+                    <i class="fa-solid ${card.icon}"></i>
+                 </div>
+                 <p class="text-sm font-semibold text-gray-500 uppercase tracking-wide">${card.title}</p>
+              </div>
+              <div>
+                <p class="text-2xl font-bold text-gray-800 truncate" title="${card.value}">${card.value}</p>
+                ${card.sub ? `<p class="text-xs text-gray-500 mt-1">${card.sub}</p>` : ''}
+              </div>
+          </div>
+        `;
+            container.appendChild(el);
+        });
+    }
+
+    function renderTable(tableEl, data, columns) {
+        tableEl.innerHTML = '';
+        if (!data || data.length === 0) {
+            tableEl.innerHTML = `<tr><td class="px-4 py-4 text-gray-400 text-center text-xs italic" colspan="${columns}">暂无数据</td></tr>`;
+            return;
+        }
+        data.slice(0, 10).forEach(row => { // Top 10 only in table
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-gray-50/50 transition-colors';
+            tr.innerHTML = `
+          <td class="px-4 py-2 text-gray-700 font-medium text-xs truncate max-w-[150px]" title="${row.name}">${row.name}</td>
+          <td class="px-4 py-2 text-gray-600 text-right text-xs font-mono">${row.count}</td>
+          ${row.errors !== undefined ? `<td class="px-4 py-2 text-right text-xs font-mono ${row.errors > 0 ? 'text-red-500 font-bold' : 'text-gray-400'}">${row.errors}</td>` : ''}
+        `;
+            tableEl.appendChild(tr);
+        });
+    }
+
+    async function loadMetrics() {
+        try {
+            const res = await fetch(`${API_BASE}/metrics`);
+            const { data } = await res.json();
+            renderCards(data);
+
+            const models = Object.entries(data.usage.models || {}).map(([name, count]) => ({ name, count }));
+            models.sort((a, b) => b.count - a.count);
+            renderTable(document.getElementById('modelTable'), models, 2);
+            document.getElementById('modelTotal').innerText = `${models.length} 个活跃模型`;
+            renderModelChart(models.slice(0, 10)); // Top 10 chart
+
+            const providers = Object.entries(data.usage.providers || {}).map(([id, info]) => ({
+                name: info.name || id,
+                count: info.count,
+                errors: (data.usage.providerErrors || {})[id] || 0
+            }));
+            providers.sort((a, b) => b.count - a.count);
+            renderTable(document.getElementById('providerTable'), providers, 3);
+            document.getElementById('providerTotal').innerText = `${providers.length} 个已连接供应商`;
+            renderProviderChart(providers.slice(0, 10));
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    function renderModelChart(models) {
+        const ctx = document.getElementById('modelChart');
+        if (!ctx) return;
+        if (modelChart) modelChart.destroy();
+
+        const gradient = ctx.getContext('2d').createLinearGradient(0, 0, 0, 400);
+        gradient.addColorStop(0, 'rgba(59, 130, 246, 0.5)');
+        gradient.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
+
+        modelChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: models.map(m => m.name.length > 15 ? m.name.substring(0, 12) + '...' : m.name),
+                datasets: [{
+                    label: '调用次数',
+                    data: models.map(m => m.count),
+                    backgroundColor: gradient,
+                    borderColor: '#3b82f6',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 3,
+                    pointHoverRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    function renderProviderChart(providers) {
+        const ctx = document.getElementById('providerChart');
+        if (!ctx) return;
+        if (providerChart) providerChart.destroy();
+
+        providerChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: providers.map(p => p.name),
+                datasets: [
+                    {
+                        label: '成功',
+                        data: providers.map(p => p.count - p.errors),
+                        backgroundColor: '#10b981',
+                        borderRadius: 4,
+                    },
+                    {
+                        label: '错误',
+                        data: providers.map(p => p.errors),
+                        backgroundColor: '#ef4444',
+                        borderRadius: 4,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8 } } },
+                scales: {
+                    y: { beginAtZero: true, stacked: true, grid: { color: 'rgba(0,0,0,0.05)' } },
+                    x: { stacked: true, grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    loadMetrics();
+    // Auto refresh every 30s
+    setInterval(loadMetrics, 30000);
+</script>
+{% endblock %}

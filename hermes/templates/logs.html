@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+
+{% block title %}日志审计 - Hermes{% endblock %}
+{% block header_title %}System Logs (系统日志){% endblock %}
+{% set active_page = "logs" %}
+
+{% block content %}
+<div class="space-y-8">
+
+    <!-- Request Logs -->
+    <div class="glass-card p-0 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 bg-white/50 backdrop-blur flex justify-between items-center">
+            <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <i class="fa-solid fa-globe text-blue-500"></i>
+                API 请求日志
+            </h2>
+            <div class="flex items-center gap-2">
+                <button onclick="fetchRequestLogs(requestLogCurrentPage)"
+                    class="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center hover:bg-blue-50 text-gray-500 hover:text-blue-600 transition">
+                    <i class="fa-solid fa-rotate-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="px-6 py-3 bg-gray-50/50 border-b border-gray-100 flex flex-wrap gap-3 items-center text-sm">
+            <input type="text" id="reqFilterMethod" placeholder="Method (GET...)"
+                class="w-24 px-3 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 bg-white">
+            <input type="text" id="reqFilterPath" placeholder="Path"
+                class="w-32 px-3 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 bg-white">
+            <input type="text" id="reqFilterModel" placeholder="Model"
+                class="w-32 px-3 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 bg-white">
+            <input type="number" id="reqFilterStatus" placeholder="Code"
+                class="w-20 px-3 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 bg-white">
+            <button onclick="requestLogCurrentPage=1; fetchRequestLogs(1);"
+                class="px-4 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-xs">筛选</button>
+            <button onclick="clearRequestFilters();" class="text-gray-400 hover:text-gray-600"><i
+                    class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left">
+                <thead class="text-xs text-gray-500 uppercase bg-gray-50/50">
+                    <tr>
+                        <th class="px-6 py-3 font-medium">时间 (本地)</th>
+                        <th class="px-6 py-3 font-medium">方法</th>
+                        <th class="px-6 py-3 font-medium">路径</th>
+                        <th class="px-6 py-3 font-medium">模型</th>
+                        <th class="px-6 py-3 font-medium">状态码</th>
+                        <th class="px-6 py-3 font-medium">耗时</th>
+                        <th class="px-6 py-3 font-medium">IP</th>
+                    </tr>
+                </thead>
+                <tbody id="requestLogsBody" class="divide-y divide-gray-100">
+                    <tr>
+                        <td colspan="7" class="px-6 py-8 text-center text-gray-400">加载中...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div
+            class="px-6 py-3 bg-gray-50/30 border-t border-gray-100 flex justify-between items-center text-xs text-gray-500">
+            <span>显示最近的日志</span>
+            <div class="flex items-center gap-2">
+                <button id="reqLogPrevBtn" class="px-2 py-1 rounded hover:bg-gray-200 disabled:opacity-50">上一页</button>
+                <span id="reqLogPageDisplay" class="font-mono">Page 1</span>
+                <button id="reqLogNextBtn" class="px-2 py-1 rounded hover:bg-gray-200 disabled:opacity-50">下一页</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sync Logs -->
+    <div class="glass-card p-0 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 bg-white/50 backdrop-blur flex justify-between items-center">
+            <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <i class="fa-solid fa-rotate text-green-500"></i>
+                同步活动日志
+            </h2>
+            <div class="flex items-center gap-2">
+                <button onclick="fetchSyncLogs(syncLogCurrentPage)"
+                    class="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center hover:bg-blue-50 text-gray-500 hover:text-blue-600 transition">
+                    <i class="fa-solid fa-rotate-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="px-6 py-3 bg-gray-50/50 border-b border-gray-100 flex flex-wrap gap-3 items-center text-sm">
+            <input type="text" id="syncFilterProviderName" placeholder="Provider Name"
+                class="w-32 px-3 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 bg-white">
+            <input type="text" id="syncFilterModel" placeholder="Model"
+                class="w-32 px-3 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 bg-white">
+            <select id="syncFilterResult"
+                class="px-3 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 bg-white text-gray-600">
+                <option value="">所有结果</option>
+                <option value="success">成功</option>
+                <option value="failure">失败</option>
+            </select>
+            <button onclick="syncLogCurrentPage=1; fetchSyncLogs(1);"
+                class="px-4 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-xs">筛选</button>
+            <button onclick="clearSyncFilters();" class="text-gray-400 hover:text-gray-600"><i
+                    class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left">
+                <thead class="text-xs text-gray-500 uppercase bg-gray-50/50">
+                    <tr>
+                        <th class="px-6 py-3 font-medium">时间 (本地)</th>
+                        <th class="px-6 py-3 font-medium">提供商</th>
+                        <th class="px-6 py-3 font-medium">模型</th>
+                        <th class="px-6 py-3 font-medium">结果</th>
+                        <th class="px-6 py-3 font-medium">详情</th>
+                    </tr>
+                </thead>
+                <tbody id="syncLogsBody" class="divide-y divide-gray-100">
+                    <tr>
+                        <td colspan="5" class="px-6 py-8 text-center text-gray-400">加载中...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div
+            class="px-6 py-3 bg-gray-50/30 border-t border-gray-100 flex justify-between items-center text-xs text-gray-500">
+            <span>后台同步事件</span>
+            <div class="flex items-center gap-2">
+                <button id="syncLogPrevBtn" class="px-2 py-1 rounded hover:bg-gray-200 disabled:opacity-50">上一页</button>
+                <span id="syncLogPageDisplay" class="font-mono">Page 1</span>
+                <button id="syncLogNextBtn" class="px-2 py-1 rounded hover:bg-gray-200 disabled:opacity-50">下一页</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const API_BASE = '/admin';
+    const LOG_LIMIT = 10;
+    let requestLogCurrentPage = 1;
+    let syncLogCurrentPage = 1;
+
+    function formatDate(ts) {
+        return new Date(ts).toLocaleString('zh-CN');
+    }
+
+    function getStatusColor(status) {
+        if (status >= 200 && status < 300) return 'text-green-600';
+        if (status >= 400 && status < 500) return 'text-amber-600';
+        if (status >= 500) return 'text-red-600';
+        return 'text-gray-600';
+    }
+
+    async function fetchRequestLogs(page) {
+        requestLogCurrentPage = page;
+        document.getElementById('reqLogPageDisplay').innerText = `Page ${page}`;
+        document.getElementById('reqLogPrevBtn').disabled = page === 1;
+
+        const filters = {
+            method: document.getElementById('reqFilterMethod').value,
+            path: document.getElementById('reqFilterPath').value,
+            model: document.getElementById('reqFilterModel').value,
+            status: document.getElementById('reqFilterStatus').value,
+        };
+        const query = new URLSearchParams({ page, limit: LOG_LIMIT, ...filters }).toString();
+
+        try {
+            const tbody = document.getElementById('requestLogsBody');
+            const res = await fetch(`${API_BASE}/request-logs?${query}`);
+            const { data } = await res.json();
+
+            tbody.innerHTML = '';
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-8 text-center text-gray-400 italic">暂无日志</td></tr>';
+                document.getElementById('reqLogNextBtn').disabled = true;
+                return;
+            }
+
+            data.forEach(log => {
+                tbody.innerHTML += `
+                    <tr class="hover:bg-blue-50/30 transition-colors">
+                        <td class="px-6 py-4 text-gray-500 text-xs font-mono">${formatDate(log.createdAt)}</td>
+                        <td class="px-6 py-4 font-bold text-gray-700 text-xs">${log.method}</td>
+                        <td class="px-6 py-4 text-xs font-mono text-gray-600 truncate max-w-[200px]" title="${log.path}">${log.path}</td>
+                        <td class="px-6 py-4"><span class="bg-blue-50 text-blue-600 px-2 py-1 rounded text-xs border border-blue-100">${log.model || '-'}</span></td>
+                        <td class="px-6 py-4 font-bold text-xs ${getStatusColor(log.status)}">${log.status}</td>
+                        <td class="px-6 py-4 text-xs font-mono text-gray-500">${log.duration}ms</td>
+                        <td class="px-6 py-4 text-xs text-gray-400 font-mono">${log.ip || '-'}</td>
+                    </tr>
+                `;
+            });
+            document.getElementById('reqLogNextBtn').disabled = data.length < LOG_LIMIT;
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    async function fetchSyncLogs(page) {
+        syncLogCurrentPage = page;
+        document.getElementById('syncLogPageDisplay').innerText = `Page ${page}`;
+        document.getElementById('syncLogPrevBtn').disabled = page === 1;
+
+        const filters = {
+            providerName: document.getElementById('syncFilterProviderName').value,
+            model: document.getElementById('syncFilterModel').value,
+            result: document.getElementById('syncFilterResult').value,
+        };
+        const query = new URLSearchParams({ page, limit: LOG_LIMIT, ...filters }).toString();
+
+        try {
+            const tbody = document.getElementById('syncLogsBody');
+            const res = await fetch(`${API_BASE}/sync-logs?${query}`);
+            const { data } = await res.json();
+
+            tbody.innerHTML = '';
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-gray-400 italic">暂无同步事件</td></tr>';
+                document.getElementById('syncLogNextBtn').disabled = true;
+                return;
+            }
+
+            data.forEach(log => {
+                const isSuccess = log.result === 'success';
+                tbody.innerHTML += `
+                    <tr class="hover:bg-blue-50/30 transition-colors">
+                        <td class="px-6 py-4 text-gray-500 text-xs font-mono">${formatDate(log.createdAt)}</td>
+                        <td class="px-6 py-4 font-semibold text-gray-700 text-sm">${log.providerName || '-'}</td>
+                        <td class="px-6 py-4"><span class="text-blue-600 font-mono text-xs">${log.model || '-'}</span></td>
+                        <td class="px-6 py-4">
+                            ${isSuccess
+                        ? '<span class="text-green-600 bg-green-50 px-2 py-0.5 rounded text-xs border border-green-100 flex w-fit items-center gap-1"><i class="fa-solid fa-check"></i> 成功</span>'
+                        : '<span class="text-red-600 bg-red-50 px-2 py-0.5 rounded text-xs border border-red-100 flex w-fit items-center gap-1"><i class="fa-solid fa-xmark"></i> 失败</span>'
+                    }
+                        </td>
+                        <td class="px-6 py-4 text-xs text-gray-500 max-w-xs truncate font-mono" title="${log.message}">${log.message}</td>
+                    </tr>
+                `;
+            });
+            document.getElementById('syncLogNextBtn').disabled = data.length < LOG_LIMIT;
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    function clearRequestFilters() {
+        document.querySelectorAll('[id^="reqFilter"]').forEach(el => el.value = '');
+        fetchRequestLogs(1);
+    }
+    function clearSyncFilters() {
+        document.querySelectorAll('[id^="syncFilter"]').forEach(el => el.value = '');
+        fetchSyncLogs(1);
+    }
+
+    // Bind Pagination Buttons
+    document.getElementById('reqLogPrevBtn').onclick = () => fetchRequestLogs(requestLogCurrentPage - 1);
+    document.getElementById('reqLogNextBtn').onclick = () => fetchRequestLogs(requestLogCurrentPage + 1);
+    document.getElementById('syncLogPrevBtn').onclick = () => fetchSyncLogs(syncLogCurrentPage - 1);
+    document.getElementById('syncLogNextBtn').onclick = () => fetchSyncLogs(syncLogCurrentPage + 1);
+
+    fetchRequestLogs(1);
+    fetchSyncLogs(1);
+</script>
+{% endblock %}
